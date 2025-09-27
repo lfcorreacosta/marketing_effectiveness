@@ -6,7 +6,7 @@
 # - saves CSV to /mnt/data/cruise_marketing_simulated.csv and displays the first rows
 #
 # The generated CSV can be downloaded from the returned path below.
-
+# %%
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -14,6 +14,8 @@ import os
 import matplotlib.pyplot as plt
 
 np.random.seed(42)
+
+# %%
 
 # Parameters
 start_date = "2019-01-07"  # Monday
@@ -26,6 +28,8 @@ products = ["Caribbean", "Mediterranean", "Fjords"]
 
 # Channel-level base weekly spends (in thousands of dollars)
 base_spend = {"TV": 300, "Social": 80, "Search": 120, "Display": 40, "Email": 10}
+
+# %%
 
 # Channel seasonality patterns (multiplier by week of year)
 def week_seasonality_multiplier(week_of_year):
@@ -58,16 +62,30 @@ for i, date in enumerate(dates):
 
 channel_df = pd.DataFrame(channel_spend, index=dates).rename_axis('date').reset_index()
 
+# %%
+
 # Economic index (normalized around 1.0 with small variations and occasional shocks)
 econ = []
 val = 1.0
 for i in range(weeks):
+    np.random.seed(63+i)  # different seed per week for reproducibility
     # Add small random fluctuation to the economic index each week; occasionally, apply a negative "shock" (rare, larger drop)
     val += np.random.normal(0, 0.005)
     if np.random.rand() < 0.02:
-        val += np.random.normal(-0.05, 0.03)
+        val += np.random.normal(-0.005, 0.003)
     econ.append(max(val, 0.7))
 econ = np.array(econ)
+
+plt.figure(figsize=(10, 4))
+plt.plot(econ, label="Economic Index", color="blue")
+plt.title("Simulated Economic Index Over Weeks")
+plt.xlabel("Week")
+plt.ylabel("Index Value")
+plt.grid(True, linestyle="--", alpha=0.6)
+plt.legend()
+plt.show()
+
+# %%
 
 # Price promotions per product (binary indicator & discount level)
 promo_indicator = {p: [] for p in products}
@@ -80,6 +98,12 @@ for i in range(weeks):
         else:
             promo_indicator[p].append(0)
             promo_discount[p].append(0.0)
+            
+# print("Keys:", promo_discount.keys())
+# print("Values:", promo_discount.values())
+
+            
+# %%
 
 # Adstock and saturation functions
 def apply_adstock(spend_series, decay=0.5):
@@ -95,6 +119,9 @@ def apply_adstock(spend_series, decay=0.5):
 def hill_saturation(x, alpha=1.0, gamma=1.0, saturation_half=100.0):
     # Hill function: effect = alpha * x^gamma / (x^gamma + saturation_half^gamma)
     return alpha * (x**gamma) / (x**gamma + saturation_half**gamma)
+
+
+# %%
 
 # Product-channel elasticities (how responsive each product is to each channel)
 # expressed as base effect multipliers (per 1000$ of spend)
@@ -112,6 +139,8 @@ saturation_half = {"TV": 400, "Social": 100, "Search": 120, "Display": 80, "Emai
 # Base weekly demand per product (bookings baseline)
 base_weekly = {"Caribbean": 180.0, "Mediterranean": 140.0, "Fjords": 90.0}
 
+# %%
+
 # Build full dataset
 rows = []
 # precompute adstocked & saturated channel series
@@ -119,6 +148,10 @@ channel_spend_arr = {c: np.array(channel_df[c]) for c in channels}
 channel_adstock = {c: apply_adstock(channel_spend_arr[c], decay=adstock_decay[c]) for c in channels}
 channel_saturated = {c: hill_saturation(channel_adstock[c], alpha=1.0, gamma=1.0, saturation_half=saturation_half[c])
                      for c in channels}
+
+
+# Define a minimum Poisson lambda for clarity
+min_poisson_lambda = 0.1
 
 for i, date in enumerate(dates):
     row = {"date": date, "week": i+1, "econ_index": econ[i]}
@@ -140,7 +173,7 @@ for i, date in enumerate(dates):
         season_mult = 1.0
         if 14 <= w <= 36:
             season_mult = 1.35 if p != "Fjords" else 1.05  # Caribbean & Med peak in summer, Fjords less so
-        if 48 <= w or w <= 6:
+        if 48 <= w <= 52 or 1 <= w <= 6:
             season_mult = 0.85 if p != "Fjords" else 1.05  # Fjords may peak in Northern summer (different weeks)
         demand *= season_mult
         # economic multiplier (people buy more when econ_index >1)
@@ -160,7 +193,7 @@ for i, date in enumerate(dates):
             media_effect += elasticities[p][c] * sat / 100.0  # divide 100 to scale effect into booking units
         # total expected bookings + gaussian noise
         expected = demand + demand * media_effect
-        observed = np.random.poisson(lam=max(expected, 0.1))  # counts: use Poisson to mimic bookings
+        observed = np.random.poisson(lam=max(expected, min_poisson_lambda))  # counts: use Poisson to mimic bookings
         row[f"bookings_{p}"] = observed
     rows.append(row)
 
@@ -171,6 +204,24 @@ cols_order = ["date", "week", "econ_index"] + \
              sum([[f"promo_{p}", f"promo_discount_{p}"] for p in products], []) + \
              [f"bookings_{p}" for p in products]
 df = df[cols_order]
+
+# %%
+
+## Plot Saturated Channel Effect for all channels
+plt.figure(figsize=(14, 10))
+saturated_cols = [f"saturated_{c}" for c in channels]
+
+for i, col in enumerate(saturated_cols, 1):
+    plt.subplot(3, 2, i)
+    plt.plot(df['date'], df[col], label=col)
+    plt.xlabel('Date')
+    plt.ylabel(col)
+    plt.title(f'{col} vs Date')
+    plt.legend()
+    plt.tight_layout()
+
+plt.show()
+# %%
 
 # Save CSV
 out_path = "cruise_marketing_simulated.csv"
@@ -183,10 +234,11 @@ display_dataframe_to_user("Simulated Cruise Marketing Dataset (first 20 rows)", 
 out_path
 
 plt.figure(figsize=(12, 5))
-plt.plot(df['date'], df['saturated_TV'], label='Saturated TV')
+plt.plot(df['date'], df['saturated_Search'], label='Saturated TV')
 plt.xlabel('Date')
 plt.ylabel('Saturated TV')
 plt.title('Saturated TV vs Date')
 plt.legend()
 plt.tight_layout()
 plt.show()
+# %%
