@@ -113,6 +113,7 @@ def apply_adstock(spend_series, decay=0.5):
         if t == 0:
             adstock[t] = spend_series[t]
         else:
+            # Geometric adstock: adstock_t = spend_t + decay * adstock_{t-1}
             adstock[t] = spend_series[t] + decay * adstock[t-1]
     return adstock
 
@@ -228,17 +229,9 @@ out_path = "cruise_marketing_simulated.csv"
 df.to_csv(out_path, index=False)
 
 # Display first rows to the user via the notebook frontend
-from caas_jupyter_tools import display_dataframe_to_user
-display_dataframe_to_user("Simulated Cruise Marketing Dataset (first 20 rows)", df.head(20))
+# from caas_jupyter_tools import display_dataframe_to_user
+# display_dataframe_to_user("Simulated Cruise Marketing Dataset (first 20 rows)", df.head(20))
 
-out_path
+# out_path
 
-plt.figure(figsize=(12, 5))
-plt.plot(df['date'], df['saturated_Search'], label='Saturated TV')
-plt.xlabel('Date')
-plt.ylabel('Saturated TV')
-plt.title('Saturated TV vs Date')
-plt.legend()
-plt.tight_layout()
-plt.show()
 # %%
