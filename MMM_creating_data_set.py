@@ -210,7 +210,7 @@ df = df[cols_order]
 
 ## Plot Saturated Channel Effect for all channels
 plt.figure(figsize=(14, 10))
-saturated_cols = [f"saturated_{c}" for c in channels]
+saturated_cols = [f"bookings_{c}" for c in products]
 
 for i, col in enumerate(saturated_cols, 1):
     plt.subplot(3, 2, i)
@@ -222,6 +222,22 @@ for i, col in enumerate(saturated_cols, 1):
     plt.tight_layout()
 
 plt.show()
+# %%
+
+plt.figure(figsize=(14, 10))
+bookings_cols = [f"bookings_{c}" for c in channels]
+
+for i, col in enumerate(bookings_cols, 1):
+    plt.subplot(3, 2, i)
+    plt.plot(df['date'], df[col], label=col)
+    plt.xlabel('Date')
+    plt.ylabel(col)
+    plt.title(f'{col} vs Date')
+    plt.legend()
+    plt.tight_layout()
+
+plt.show()
+
 # %%
 
 # Save CSV
