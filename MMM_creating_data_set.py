@@ -225,8 +225,8 @@ plt.show()
 # %%
 
 # Save CSV
-out_path = "cruise_marketing_simulated.csv"
-df.to_csv(out_path, index=False)
+out_path = "data/cruise_marketing_simulated.csv"
+#df.to_csv(out_path, index=False)
 
 # Display first rows to the user via the notebook frontend
 # from caas_jupyter_tools import display_dataframe_to_user
@@ -234,4 +234,6 @@ df.to_csv(out_path, index=False)
 
 # out_path
 
+# %%
+df.head(20)
 # %%
